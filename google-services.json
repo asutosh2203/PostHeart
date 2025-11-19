@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "16418924584",
+    "project_id": "postheart-2203",
+    "storage_bucket": "postheart-2203.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:16418924584:android:7f491a8866948b6659ed1d",
+        "android_client_info": {
+          "package_name": "com.anonymous.PostHeart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsJhE8PUGvEP5YL1yINyGkFRl3mXFuVcU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

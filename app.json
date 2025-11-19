@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "HeartPost",
-    "slug": "HeartPost",
+    "name": "PostHeart",
+    "slug": "PostHeart",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "heartpost",
+    "scheme": "postheart",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -19,7 +19,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.PostHeart",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -37,6 +39,23 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useAndroidX": true
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "packageName": "com.anonymous.PostHeart"
         }
       ]
     ],
