@@ -1,50 +1,107 @@
-# Welcome to your Expo app 👋
+# PostHeart ❤️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**A cross-platform mobile app for friends to share notes directly to each other's Home Screen via Native Widgets.**
 
-## Get started
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?style=for-the-badge&logo=kotlin&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
+![Expo](https://img.shields.io/badge/Expo-1B1F23?style=for-the-badge&logo=expo&logoColor=white)
 
-1. Install dependencies
+## 📖 Overview
 
-   ```bash
-   npm install
-   ```
+PostHeart allows partners to pair up via a unique code. Once connected, any text sent from the app instantly updates the **Native Android Widget** on their partner's home screen. It acts like a "digital sticky note" on your partner's phone.
 
-2. Start the app
+Unlike typical React Native widget libraries that rely on "screenshotting" views, PostHeart uses a **custom Native Module bridge** written in Kotlin to handle `SharedPreferences` and `BroadcastReceivers` for high-performance, battery-efficient updates.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠 Tech Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+* **Frontend:** React Native (Expo Managed Workflow with Prebuild)
+* **Native Android:** Kotlin, XML Layouts, AppWidgetProvider
+* **Backend:** Firebase Firestore (Real-time listeners)
+* **State Management:** React Hooks & Context
+* **Navigation:** Expo Router (Stack Navigation)
+* **Local Storage:** AsyncStorage (for session persistence)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🧠 Key Engineering Highlights
 
-When you're ready, run:
+### 1. Custom Native Bridge (The "Special Sauce")
+Instead of using heavy third-party libraries, I wrote a custom Native Module to bridge the JavaScript thread and the Android Native thread.
+
+* **JS Side:** React Native sends data via `NativeModules.SharedStorage.set(note)`.
+* **Kotlin Side:**
+    * Intercepts the data.
+    * Writes to Android `SharedPreferences` (native disk storage).
+    * Fires a `BroadcastIntent` to wake up the Widget Provider.
+* **Widget Side:** The `AppWidgetProvider` wakes up, reads from disk, and renders the XML layout instantly.
+
+### 2. Real-time Sync
+* Uses **Firestore listeners** (`onSnapshot`) to detect changes in the cloud instantly.
+* Architecture handles the "Digital Fridge" concept: both users see the same shared state to ensure synchronization confirmation.
+
+### 3. Secure Pairing Logic
+* Implemented a room-based pairing system where users generate or join a unique 6-character alphanumeric code.
+* Gatekeeper logic in `index.tsx` handles redirection/routing based on local auth state.
+
+---
+
+## 📂 Project Structure
+
+Interesting files for Recruiters/Developers:
 
 ```bash
-npm run reset-project
+├── app/
+│   ├── index.tsx          # Main Dashboard & Gatekeeper Logic
+│   └── setup.tsx          # Pairing/Login Screen
+├── android/app/src/main/java/com/anonymous/PostHeart/
+│   ├── HelloWidget.kt     # NATIVE: The Android Widget Provider logic
+│   ├── SharedStorageModule.kt # NATIVE: The Bridge between JS and Kotlin
+│   └── SharedStoragePackage.kt # NATIVE: React Package registration
+├── android/app/src/main/res/layout/
+│   └── widget_layout.xml  # NATIVE: XML UI definition for the widget
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🚀 How to Run
+### Prerequisites
+* Node.js & npm
+* Android Studio (for Emulator)
+* JDK 17+
 
-To learn more about developing your project with Expo, look at the following resources:
+### Steps
+#### 1. Clone the Repo:
+```bash
+git clone https://github.com/asutosh2203/PostHeart.git
+cd PostHeart
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+#### 2. Install Dependencies:
+```bash
+npm install
+```
 
-## Join the community
+#### 3. Firebase setup:
+* Create a project in Firebase Console.
+* Download google-services.json.
+* Place it in the android/app/ directory.
 
-Join our community of developers creating universal apps.
+#### 4. Run the App:
+```bash
+npx expo run:android
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 🔮 Future Roadmap
+* [ ] iOS Support: Implementing WidgetKit via Swift bridge.
+* [ ] Push Notifications (FCM): To wake up the widget when the app is killed in the background.
+* [ ] Identity System: Device fingerprinting to show "Sent by You" vs "Sent by Partner".
+
+---
+
+Maintained by [Asutosh](https://asutosh2203.netlify.app)  
+Drop a ⭐ if you like where this is going!
