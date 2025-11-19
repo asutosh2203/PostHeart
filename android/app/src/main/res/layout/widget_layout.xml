@@ -1,0 +1,77 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:id="@+id/header_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="❤️"
+            android:textSize="18sp"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Post Heart"
+            android:textColor="#2D3436"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_below="@id/header_container"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/widget_timestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:text="12:00 PM"
+        android:textColor="#757575"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/widget_signature"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@id/widget_timestamp"
+        android:layout_alignParentStart="true"
+        android:text="— Gul"
+        android:textColor="#555555"
+        android:textSize="14sp"
+        android:textStyle="italic" />
+
+    <TextView
+        android:id="@+id/widget_note"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/divider"
+        android:layout_above="@id/widget_timestamp"
+        android:gravity="center_vertical"
+        android:text="Have you eaten yet?"
+        android:textColor="#212121"
+        android:textSize="20sp"
+        android:textStyle="bold|italic" android:ellipsize="end"
+        android:maxLines="5" />
+
+</RelativeLayout>

@@ -7,6 +7,8 @@ import {
   StyleSheet,
   NativeModules,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {
   getFirestore,
@@ -22,6 +24,7 @@ const { SharedStorage } = NativeModules;
 
 export default function HomeScreen() {
   const [note, setNote] = useState("");
+  const [myName, setMyName] = useState("");
   const [lastSent, setLastSent] = useState("Syncing...");
 
   // New State for Pairing
@@ -36,10 +39,16 @@ export default function HomeScreen() {
       const checkLogin = async () => {
         setIsLoading(true); // Show spinner briefly while checking
         try {
-          const savedCode = await AsyncStorage.getItem("couple_code");
-          if (savedCode) {
-            setCoupleCode(savedCode); // This updates the UI to the NEW code
-          }
+          const values = await AsyncStorage.multiGet([
+            "couple_code",
+            "user_name",
+          ]);
+          const savedCode = values[0][1];
+          const savedName = values[1][1];
+
+          // Update the UI to new code
+          if (savedCode) setCoupleCode(savedCode);
+          if (savedName) setMyName(savedName);
         } catch (e) {
           console.error("Storage error", e);
         } finally {
@@ -53,45 +62,68 @@ export default function HomeScreen() {
 
   // 2. LISTEN TO FIREBASE (Only if logged in)
   useEffect(() => {
-    if (!coupleCode) return; // Don't listen if we don't have a code
-
-    console.log("Listening to room:", coupleCode); // Debug log
+    if (!coupleCode) return;
 
     const noteRef = doc(db, "couples", coupleCode);
 
-    const unsubscribe = onSnapshot(
-      noteRef,
-      (documentSnapshot) => {
-        if (documentSnapshot.exists()) {
-          const data = documentSnapshot.data();
-          const newNote = data?.text || "Welcome!";
+    const unsubscribe = onSnapshot(noteRef, (documentSnapshot) => {
+      if (documentSnapshot.exists()) {
+        const data = documentSnapshot.data();
 
-          setLastSent(newNote);
-          SharedStorage.set(newNote);
+        // 1. Get the Text
+        const newNote = data?.text || "Welcome!";
+
+        // 2. Get the Sender (Default to empty if missing)
+        const senderName = data?.sender || "";
+
+        // 3. Format the Time
+        let timeString = "Just now";
+        if (data?.timestamp) {
+          const date = data.timestamp.toDate();
+          timeString = date.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
         }
-      },
-      (error) => console.error("Listen failed: ", error)
-    );
+
+        setLastSent(newNote);
+
+        // 4. Create the Rich JSON Payload
+        const payload = JSON.stringify({
+          text: newNote,
+          time: timeString,
+          sender: senderName, // <--- Sending it to the Kotlin Bridge
+          type: "text",
+        });
+
+        // 5. Update the Widget
+        SharedStorage.set(payload);
+      }
+    });
 
     return () => unsubscribe();
   }, [coupleCode]); // Re-run if code changes
+
+  const SENDER = `— ${myName}`;
 
   const handleSend = async () => {
     if (note.trim() === "" || !coupleCode) return;
 
     try {
       const noteRef = doc(db, "couples", coupleCode);
+
       await setDoc(
         noteRef,
         {
           text: note,
+          sender: SENDER,
           timestamp: serverTimestamp(),
         },
         { merge: true }
-      ); // merge: true keeps the 'created' date safe
+      );
 
       setNote("");
-      console.log("Sent to cloud! ☁️");
+      console.log("Sent to cloud by ", myName, "! ☁️");
     } catch (e) {
       console.error("Cloud Error:", e);
       alert("Failed to send note");
@@ -118,29 +150,35 @@ export default function HomeScreen() {
 
   // 5. THE DASHBOARD (Only renders if logged in)
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>PostHeart 🔐</Text>
-        <Text style={styles.codeDisplay}>CODE: {coupleCode}</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined} // Android handles 'padding' via the config we just changed
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0} // Adjusts for iOS header height
+    >
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.title}>PostHeart 🔐</Text>
+          <Text style={styles.codeDisplay}>CODE: {coupleCode}</Text>
 
-        <View style={styles.previewCard}>
-          <Text style={styles.previewLabel}>LIVE ON PARTNER'S SCREEN</Text>
-          <Text style={styles.previewText}>"{lastSent}"</Text>
+          <View style={styles.previewCard}>
+            <Text style={styles.previewLabel}>LIVE ON PARTNER'S SCREEN</Text>
+            <Text style={styles.previewText}>"{lastSent}"</Text>
+          </View>
+
+          <TextInput
+            style={styles.input}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Type a note..."
+            multiline
+          />
+
+          <TouchableOpacity style={styles.button} onPress={handleSend}>
+            <Text style={styles.buttonText}>Send to Partner</Text>
+          </TouchableOpacity>
         </View>
-
-        <TextInput
-          style={styles.input}
-          value={note}
-          onChangeText={setNote}
-          placeholder="Type a note..."
-          multiline
-        />
-
-        <TouchableOpacity style={styles.button} onPress={handleSend}>
-          <Text style={styles.buttonText}>Send to Partner</Text>
-        </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

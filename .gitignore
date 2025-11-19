@@ -38,9 +38,18 @@ yarn-error.*
 
 app-example
 
-# generated native folders
-/ios
-/android
+# Keep the android folder, but ignore the build artifacts
+android/app/build/
+android/.gradle/
+
+# ⚠️ CRITICAL: Ignore your API Keys
+google-services.json
+android/app/google-services.json
+
+# Ignore local configuration
+android/local.properties
+android/*.iml
+android/.idea
 
 #firebase config
 google-services.json

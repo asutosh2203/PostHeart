@@ -18,11 +18,23 @@ import {
 
 export default function SetupScreen() {
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const db = getFirestore();
 
+  // Helper to validate inputs
+  const validate = () => {
+    if (name.trim().length < 2) {
+      Alert.alert("Missing Name", "Please enter your name first!");
+      return false;
+    }
+    return true;
+  };
+
   // 1. Create a new room
   const createCode = async () => {
+    if (!validate()) return;
+
     // Generate a random 6-char code
     const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     setLoading(true);
@@ -31,11 +43,15 @@ export default function SetupScreen() {
       // Create the document in Firebase
       await setDoc(doc(db, "couples", newCode), {
         created: new Date(),
-        text: "Welcome to PostHeart! ❤️",
+        text: `Welcome, ${name}! ❤️`, // Personalize the welcome message
+        sender: "— System",
       });
 
-      // Save locally
-      await AsyncStorage.setItem("couple_code", newCode);
+      // Save Code AND Name locally
+      await AsyncStorage.multiSet([
+        ["couple_code", newCode],
+        ["user_name", name.trim()],
+      ]);
 
       Alert.alert(
         "Success!",
@@ -59,7 +75,12 @@ export default function SetupScreen() {
 
   // 2. Join an existing room
   const joinCode = async () => {
-    if (code.length < 6) return;
+    if (!validate()) return;
+    if (code.length < 6) {
+      Alert.alert("Invalid Code", "Code must be 6 characters.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -68,9 +89,12 @@ export default function SetupScreen() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        await AsyncStorage.setItem("couple_code", cleanCode);
+        // Save Code AND Name locally
+        await AsyncStorage.multiSet([
+          ["couple_code", cleanCode],
+          ["user_name", name.trim()],
+        ]);
 
-        // Add a success alert here too for good UX
         Alert.alert("Connected!", "You are now linked.", [
           { text: "Enter", onPress: () => router.replace("/") },
         ]);
@@ -88,6 +112,17 @@ export default function SetupScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>PostHeart ❤️</Text>
       <Text style={styles.subtitle}>Connect with your person.</Text>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>ENTER YOUR NAME:</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Asutosh"
+          value={name}
+          onChangeText={setName}
+          maxLength={15}
+        />
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.label}>ENTER PARTNER'S CODE:</Text>
@@ -131,6 +166,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 40,
   },
+  inputGroup: { marginBottom: 20 },
   card: {
     backgroundColor: "white",
     padding: 20,

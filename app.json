@@ -21,7 +21,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.PostHeart",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "output": "static",
