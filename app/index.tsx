@@ -1,35 +1,48 @@
-import React, { useState, useEffect, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  View,
+  doc,
+  getFirestore,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from "@react-native-firebase/firestore";
+import { Redirect, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  NativeModules,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  NativeModules,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  View,
 } from "react-native";
-import {
-  getFirestore,
-  doc,
-  onSnapshot,
-  setDoc,
-  serverTimestamp,
-} from "@react-native-firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Redirect, useFocusEffect } from "expo-router"; // <--- The Magic Redirect Component
-
 const { SharedStorage } = NativeModules;
 
 export default function HomeScreen() {
   const [note, setNote] = useState("");
   const [myName, setMyName] = useState("");
   const [lastSent, setLastSent] = useState("Syncing...");
+  const [theme, setTheme] = useState("");
 
   // New State for Pairing
   const [coupleCode, setCoupleCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Themes
+  const THEMES = [
+    { id: "light", color: "#FFF9C4", label: "💛" }, // Matches widget_background
+    { id: "pink", color: "#ff97bc", label: "🌸" }, // Matches widget_background_pink
+    { id: "dark", color: "#2D3436", label: "🖤" },
+    { id: "duck_wink", color: "#f7cbb0", label: "🐣" },
+    { id: "bunny", color: "#F0D0C1", label: "🐰" },
+    { id: "duck_rain", color: "#D6DBE1", label: "🦆" },
+    { id: "duck_clueless", color: "#FFD6D8", label: "🦢" },
+    { id: "mm_hug", color: "#F7E1C9", label: "🐻" },
+  ];
 
   const db = getFirestore();
 
@@ -70,13 +83,7 @@ export default function HomeScreen() {
       if (documentSnapshot.exists()) {
         const data = documentSnapshot.data();
 
-        // 1. Get the Text
-        const newNote = data?.text || "Welcome!";
-
-        // 2. Get the Sender (Default to empty if missing)
-        const senderName = data?.sender || "";
-
-        // 3. Format the Time
+        // Format the Time
         let timeString = "Just now";
         if (data?.timestamp) {
           const date = data.timestamp.toDate();
@@ -86,17 +93,18 @@ export default function HomeScreen() {
           });
         }
 
-        setLastSent(newNote);
+        setLastSent(data?.text || "Welcome!");
 
-        // 4. Create the Rich JSON Payload
+        // Create the Rich JSON Payload
         const payload = JSON.stringify({
-          text: newNote,
+          text: data?.text || "Welcome!",
           time: timeString,
-          sender: senderName, // <--- Sending it to the Kotlin Bridge
+          sender: data?.sender || "",
           type: "text",
+          theme: data?.theme || "light",
         });
 
-        // 5. Update the Widget
+        // Update the Widget
         SharedStorage.set(payload);
       }
     });
@@ -111,17 +119,27 @@ export default function HomeScreen() {
 
     try {
       const noteRef = doc(db, "couples", coupleCode);
-
-      await setDoc(
-        noteRef,
-        {
-          text: note,
-          sender: SENDER,
-          timestamp: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
+      if (theme !== "")
+        await setDoc(
+          noteRef,
+          {
+            text: note,
+            sender: SENDER,
+            timestamp: serverTimestamp(),
+            theme,
+          },
+          { merge: true }
+        );
+      else
+        await setDoc(
+          noteRef,
+          {
+            text: note,
+            sender: SENDER,
+            timestamp: serverTimestamp(),
+          },
+          { merge: true }
+        );
       setNote("");
       console.log("Sent to cloud by ", myName, "! ☁️");
     } catch (e) {
@@ -152,10 +170,14 @@ export default function HomeScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined} // Android handles 'padding' via the config we just changed
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0} // Adjusts for iOS header height
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <Text style={styles.title}>PostHeart 🔐</Text>
           <Text style={styles.codeDisplay}>CODE: {coupleCode}</Text>
@@ -171,13 +193,40 @@ export default function HomeScreen() {
             onChangeText={setNote}
             placeholder="Type a note..."
             multiline
+            scrollEnabled
           />
+
+          <View style={styles.themeContainer}>
+            <Text style={styles.label}>PICK A VIBE</Text>
+            <ScrollView
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              style={styles.scrollContainer} // 1. Controls the window size
+              contentContainerStyle={styles.scrollContent}
+            >
+              {THEMES.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => setTheme(t.id)}
+                  style={[
+                    styles.colorCircle,
+                    { backgroundColor: t.color, marginRight: 10 },
+                    theme === t.id && styles.selectedCircle, // Highlight selected
+                  ]}
+                >
+                  {theme === t.id && (
+                    <Text style={{ fontSize: 12 }}>{t.label}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
           <TouchableOpacity style={styles.button} onPress={handleSend}>
             <Text style={styles.buttonText}>Send to Partner</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -197,6 +246,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F7FA",
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   content: {
     flex: 1,
@@ -239,6 +292,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     minHeight: 100,
+    maxHeight: 120,
     textAlignVertical: "top",
     borderWidth: 1,
     borderColor: "#DFE6E9",
@@ -254,5 +308,48 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  themeContainer: {
+    marginBottom: 20,
+    width: "100%",
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#B2BEC3",
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  scrollContainer: {
+    flexGrow: 0, // Don't expand to fill screen
+    marginBottom: 10, // Space below the scroller
+    paddingVertical: 10, // Add room for shadows so they don't get clipped
+    // marginHorizontal: -20, // Optional: Lets it scroll edge-to-edge?
+  },
+
+  scrollContent: {
+    flexDirection: "row", // Keep items horizontal
+    gap: 16, // Increase gap slightly for better touch targets
+    paddingHorizontal: 4, // Tiny padding at the start
+    paddingRight: 20, // Space at the end
+    alignItems: "center", // Center circles vertically in the scroll track
+  },
+  colorCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "transparent", // Invisible border normally
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  selectedCircle: {
+    borderColor: "#0984E3", // Blue ring when selected
+    transform: [{ scale: 1.1 }], // Slightly bigger
   },
 });

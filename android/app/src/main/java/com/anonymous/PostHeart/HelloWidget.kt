@@ -44,21 +44,42 @@ internal fun updateAppWidget(
         val timeText = json.optString("time", "") 
         val senderText = json.optString("sender", "") 
 
-        // --- NEW DYNAMIC LOGIC ---
-
         // A. Wrap in Quotes
         // We skip quotes if it's the default "Waiting..." message to keep it clean
         val finalNote = if (rawText == "Waiting for note...") rawText else "\"$rawText\""
 
         // B. Calculate Font Size based on length
         val fontSize = when {
-            rawText.length <= 30 -> 32f   // Short & Loud (e.g. "Miss you!")
-            rawText.length <= 80 -> 24f   // Medium Sentence
+            rawText.length <= 12 -> 30f
+            rawText.length <= 30 -> 24f   // Short & Loud (e.g. "Miss you!")
+            rawText.length <= 80 -> 20f   // Medium Sentence
             else -> 16f                   // Long Story
         }
 
         // C. Apply Size (COMPLEX_UNIT_SP handles system font scaling)
         views.setTextViewTextSize(R.id.widget_note, TypedValue.COMPLEX_UNIT_SP, fontSize)
+
+        // D. Apply theme
+        val theme = json.optString("theme", "light") // Default to light yellow
+
+        val bgResId = when (theme) {
+            "pink" -> R.drawable.widget_background_pink
+            "dark" -> R.drawable.widget_background_dark
+            "duck_rain" -> R.drawable.duck_rain
+            "bunny" -> R.drawable.bunny
+            "duck_wink" -> R.drawable.duck_wink
+            "duck_clueless" -> R.drawable.duck_clueless
+            "mm_hug" -> R.drawable.mm_hug
+            // "paper" -> R.drawable.bg_paper
+            else -> R.drawable.widget_background
+        }
+        val textColor = if (theme == "dark" || theme == "pink") 0xFFFFFFFF.toInt() else 0xFF2D3436.toInt()
+
+        views.setImageViewResource(R.id.widget_background_image, bgResId)
+        views.setTextColor(R.id.widget_note, textColor)
+        views.setTextColor(R.id.widget_timestamp, textColor)
+        views.setTextColor(R.id.widget_signature, textColor)
+        views.setTextColor(R.id.header_text, textColor)
 
         // -------------------------
 

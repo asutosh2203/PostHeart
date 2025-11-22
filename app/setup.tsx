@@ -76,6 +76,7 @@ export default function SetupScreen() {
   // 2. Join an existing room
   const joinCode = async () => {
     if (!validate()) return;
+
     if (code.length < 6) {
       Alert.alert("Invalid Code", "Code must be 6 characters.");
       return;

@@ -9,7 +9,7 @@
 
 ## 📖 Overview
 
-PostHeart allows partners to pair up via a unique code. Once connected, any text sent from the app instantly updates the **Native Android Widget** on their partner's home screen. It acts like a "digital sticky note" on your partner's phone.
+PostHeart allows partners to pair up via a unique code. Once connected, any text sent from the app instantly updates the **Native Android Widget** on their partner's home screen. It acts like a "digital sticky note" with different pre installed themes on your partner's phone.
 
 Unlike typical React Native widget libraries that rely on "screenshotting" views, PostHeart uses a **custom Native Module bridge** written in Kotlin to handle `SharedPreferences` and `BroadcastReceivers` for high-performance, battery-efficient updates.
 
