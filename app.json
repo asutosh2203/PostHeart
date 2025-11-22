@@ -58,7 +58,8 @@
         {
           "packageName": "com.anonymous.PostHeart"
         }
-      ]
+      ],
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true,

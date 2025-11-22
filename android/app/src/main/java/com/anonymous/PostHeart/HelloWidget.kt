@@ -40,24 +40,9 @@ internal fun updateAppWidget(
         val json = JSONObject(jsonString)
         
         // Get the raw text (Renaming to 'rawText' to differentiate from final display)
-        val rawText = json.optString("text", "Waiting for note...")
         val timeText = json.optString("time", "") 
-        val senderText = json.optString("sender", "") 
-
-        // A. Wrap in Quotes
-        // We skip quotes if it's the default "Waiting..." message to keep it clean
-        val finalNote = if (rawText == "Waiting for note...") rawText else "\"$rawText\""
-
-        // B. Calculate Font Size based on length
-        val fontSize = when {
-            rawText.length <= 12 -> 30f
-            rawText.length <= 30 -> 24f   // Short & Loud (e.g. "Miss you!")
-            rawText.length <= 80 -> 20f   // Medium Sentence
-            else -> 16f                   // Long Story
-        }
-
-        // C. Apply Size (COMPLEX_UNIT_SP handles system font scaling)
-        views.setTextViewTextSize(R.id.widget_note, TypedValue.COMPLEX_UNIT_SP, fontSize)
+        val senderText = json.optString("sender", "")
+        val noteType = json.optString("type", "text")
 
         // D. Apply theme
         val theme = json.optString("theme", "light") // Default to light yellow
@@ -70,10 +55,58 @@ internal fun updateAppWidget(
             "duck_wink" -> R.drawable.duck_wink
             "duck_clueless" -> R.drawable.duck_clueless
             "mm_hug" -> R.drawable.mm_hug
-            // "paper" -> R.drawable.bg_paper
+            "beach" -> R.drawable.beach
+            "mountain" -> R.drawable.mountain
             else -> R.drawable.widget_background
         }
-        val textColor = if (theme == "dark" || theme == "pink") 0xFFFFFFFF.toInt() else 0xFF2D3436.toInt()
+
+        if (noteType == "sticker") {
+            // --- STICKER MODE ---
+            val stickerName = json.optString("content", "sticker_heart")
+            
+            // Dynamically find the drawable ID by its string name
+            val resId = context.resources.getIdentifier(stickerName, "drawable", context.packageName)
+            
+            if (resId != 0) {
+                // Show Image
+                views.setImageViewResource(R.id.widget_sticker, resId)
+                views.setViewVisibility(R.id.widget_sticker, android.view.View.VISIBLE)
+                
+                // Hide Text & Divider (Cleaner look for stickers)
+                views.setViewVisibility(R.id.widget_note, android.view.View.GONE)
+                views.setViewVisibility(R.id.divider, android.view.View.GONE)
+            }
+            
+        } else {
+            val rawText = json.optString("text", "Waiting for note...")
+
+            // Show Text & Divider
+            views.setViewVisibility(R.id.widget_note, android.view.View.VISIBLE)
+            views.setViewVisibility(R.id.divider, android.view.View.VISIBLE)
+            
+            // Hide Image
+            views.setViewVisibility(R.id.widget_sticker, android.view.View.GONE)
+
+            // A. Wrap in Quotes
+            // We skip quotes if it's the default "Waiting..." message to keep it clean
+            val finalNote = if (rawText == "Waiting for note...") rawText else "\"$rawText\""
+
+            // B. Calculate Font Size based on length
+            val fontSize = when {
+                rawText.length <= 12 -> 30f
+                rawText.length <= 30 -> 24f   // Short & Loud (e.g. "Miss you!")
+                rawText.length <= 80 -> 20f   // Medium Sentence
+                else -> 16f                   // Long Story
+            }
+
+            // Set note in the view
+            views.setTextViewText(R.id.widget_note, finalNote)
+
+            // C. Apply Size (COMPLEX_UNIT_SP handles system font scaling)
+            views.setTextViewTextSize(R.id.widget_note, TypedValue.COMPLEX_UNIT_SP, fontSize)
+        }
+
+        val textColor = if (theme == "dark" || theme == "pink" || theme == "mountain") 0xFFFFFFFF.toInt() else 0xFF2D3436.toInt()
 
         views.setImageViewResource(R.id.widget_background_image, bgResId)
         views.setTextColor(R.id.widget_note, textColor)
@@ -84,7 +117,6 @@ internal fun updateAppWidget(
         // -------------------------
 
         // 4. Update the Layout Views
-        views.setTextViewText(R.id.widget_note, finalNote)
         views.setTextViewText(R.id.widget_timestamp, timeText)
         views.setTextViewText(R.id.widget_signature, senderText)
 
