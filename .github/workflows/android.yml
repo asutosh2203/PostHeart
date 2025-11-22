@@ -1,44 +1,50 @@
-name: Build Android APK0
+name: Build Android APK
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch: # Allows you to click "Run" manually in GitHub UI
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm' # Automatically caches node_modules
 
-      - name: Install NPM deps
+      - name: Install Dependencies
         run: npm install
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      # This action sets up Java AND caches Gradle automatically
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          gradle-version: wrapper
 
-      - name: Make Gradle executable
-        run: chmod +x android/gradlew
-
-      - name: Create google-services.json
+      - name: Decode Google Services JSON
+        env:
+          # You need to add this secret in GitHub Repo Settings!
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-        shell: bash
+          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Build Release APK
         working-directory: android
-        run: ./gradlew assembleRelease
+        # We use 'assembleRelease'. Since we configured it to use debug keys, this works!
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Upload Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: postheart-release
+          name: PostHeart-APK
+          # This path matches where we found it locally
           path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
