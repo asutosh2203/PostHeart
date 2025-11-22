@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch: # Allows you to click "Run" manually in GitHub UI
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm' # Automatically caches node_modules
+          cache: "npm" # Automatically caches node_modules
 
       - name: Install Dependencies
         run: npm install
@@ -35,6 +35,9 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
 
       - name: Build Release APK
         working-directory: android
