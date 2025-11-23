@@ -51,3 +51,12 @@ jobs:
           # This path matches where we found it locally
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 7
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          token: ${{ secrets.FIREBASE_TOKEN }}
+          groups: testers
+          file: android/app/build/outputs/apk/release/PostHeart_v*.apk
+          releaseNotes: ${{ github.event.head_commit.message }}

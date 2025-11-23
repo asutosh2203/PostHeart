@@ -247,7 +247,6 @@ export default function HomeScreen() {
         <View style={styles.content}>
           <Text style={styles.title}>PostHeart 🔐</Text>
           <Text style={styles.codeDisplay}>CODE: {coupleCode}</Text>
-          {console.log(liveMessage)}
           {/* PREVIEW CARD */}
           <View style={[styles.previewCard]}>
             <Text style={styles.previewLabel}>LIVE ON HOME SCREEN</Text>
