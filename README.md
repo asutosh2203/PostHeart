@@ -15,6 +15,13 @@ Unlike typical React Native widget libraries that rely on "screenshotting" views
 
 ---
 
+## 📸 Demo
+| App Interface | Home Screen Widget |
+|:---:|:---:|
+| <img src="./screenshot_app.png" width="250"> | <img src="./screenshot_widget.png" width="250"> |
+
+---
+
 ## 🛠 Tech Stack
 
 * **Frontend:** React Native (Expo Managed Workflow with Prebuild)
