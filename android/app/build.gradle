@@ -133,7 +133,13 @@ android {
     }
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "PostHeart_v${variant.versionName}.apk"
+            // Check if the command line passed a specific name
+            if (project.hasProperty('customName')) {
+                outputFileName = project.property('customName')
+            } else {
+                // Fallback for local builds (e.g. PostHeart_v3.1.0.apk)
+                outputFileName = "PostHeart_v${variant.versionName}.apk"
+            }
         }
     }
 }
