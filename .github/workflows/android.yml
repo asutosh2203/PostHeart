@@ -5,6 +5,9 @@ on:
     branches: ["main"]
   workflow_dispatch: # Allows you to click "Run" manually in GitHub UI
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -62,3 +65,12 @@ jobs:
           groups: testers
           file: android/app/build/outputs/apk/release/${{ env.APK_NAME }}
           releaseNotes: ${{ github.event.head_commit.message }}
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "android/app/build/outputs/apk/release/${{ env.APK_NAME }}"
+          tag: "v1.0.${{ github.run_number }}"
+          name: "Release ${{ github.run_number }}: ${{ env.APK_NAME }}"
+          body: "${{ github.event.head_commit.message }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
