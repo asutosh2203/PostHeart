@@ -104,6 +104,7 @@ export default function SetupScreen() {
       }
     } catch (error) {
       Alert.alert("Error", "Could not join.");
+      console.log(error);
     } finally {
       setLoading(false);
     }

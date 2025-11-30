@@ -19,4 +19,27 @@ const STICKERS = [
   { id: "sticker_catsad", label: "😿" },
 ];
 
-export { THEMES, STICKERS };
+const senderColorMap: Record<string, string> = {};
+
+const textColors = [
+  "#D96E52",
+  "#C15572",
+  "#D88948",
+  "#3A7E6F",
+  "#3F6596",
+  "#6A4BA6",
+  "#B03E54",
+  "#A07A52",
+  "#2C747C",
+  "#3B7992",
+];
+
+function getColorForSender(sender: string) {
+  if (!senderColorMap[sender]) {
+    const randomIndex = Math.floor(Math.random() * textColors.length);
+    senderColorMap[sender] = textColors[randomIndex]!;
+  }
+  return senderColorMap[sender];
+}
+
+export { THEMES, STICKERS, getColorForSender };

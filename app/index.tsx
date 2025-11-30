@@ -1,9 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  addDoc,
+  collection,
   doc,
   FieldValue,
   getFirestore,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
 } from "@react-native-firebase/firestore";
@@ -12,33 +17,35 @@ import { Redirect, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   KeyboardAvoidingView,
   NativeModules,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
 const { SharedStorage } = NativeModules;
+import styles from "./css/index_css";
 
-import { THEMES, STICKERS } from "@/utils/utils";
+import { THEMES, STICKERS, getColorForSender } from "@/utils/utils";
 
 interface Payload {
-  text: String;
-  type: String;
-  sender: String;
-  theme: String;
-  content: String | null;
+  text: string;
+  type: string;
+  sender: string;
+  theme: string;
+  content: string | null;
   timestamp: FieldValue;
 }
 
 export default function HomeScreen() {
   const [note, setNote] = useState("");
   const [myName, setMyName] = useState("");
-  const [lastSent, setLastSent] = useState("Syncing...");
   const [liveMessage, setLiveMessage] = useState({
     type: "text",
     text: "Syncing...",
@@ -56,7 +63,19 @@ export default function HomeScreen() {
   const [mode, setMode] = useState("text"); // 'text' or 'sticker'
   const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
 
+  const [history, setHistory] = useState<Payload[]>();
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+
   const db = getFirestore();
+
+  // Smooth snimation for history list
+  if (
+    Platform.OS === "android" &&
+    UIManager.setLayoutAnimationEnabledExperimental
+  ) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
 
   // 1. CHECK LOGIN STATUS ON STARTUP
   useFocusEffect(
@@ -68,8 +87,8 @@ export default function HomeScreen() {
             "couple_code",
             "user_name",
           ]);
-          const savedCode = values[0][1];
-          const savedName = values[1][1];
+          const savedCode = values[0]![1];
+          const savedName = values[1]![1];
 
           // Update the UI to new code
           if (savedCode) setCoupleCode(savedCode);
@@ -105,7 +124,6 @@ export default function HomeScreen() {
           });
         }
 
-        setLastSent(data?.text || "Welcome!");
         setLiveMessage({
           type: data?.type || "text",
           text: data?.text || "Welcome!",
@@ -135,7 +153,43 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, [coupleCode]); // Re-run if code changes
 
-  // 3. SETUP NOTIFICATIONS
+  // 3. LISTEN TO FIREBASE FOR HISTORY
+  useEffect(() => {
+    if (!coupleCode) return;
+
+    const historyRef = collection(db, "couples", coupleCode, "history");
+    const q = query(historyRef, orderBy("timestamp", "desc"), limit(20));
+    let senderColors: Record<string, string> = {};
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (snapshot) {
+        setIsHistoryLoading(true);
+        // Map the docs to a clean array for your FlatList
+        let historyData = snapshot.docs.map((doc: any) => {
+          return {
+            id: doc.id,
+            ...doc.data(),
+          };
+        });
+
+        historyData = historyData.slice(1, historyData.length);
+
+        historyData = historyData.map((item: Payload) => ({
+          ...item,
+          color: getColorForSender(item.sender),
+        }));
+
+        setHistory(historyData); // Update your state
+        setIsHistoryLoading(false);
+      } else {
+        console.log("No history yet!");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [coupleCode]);
+
+  // 4. SETUP NOTIFICATIONS
   useEffect(() => {
     const setupNotifications = async () => {
       // Only proceed if we are logged in (have code and name)
@@ -186,6 +240,7 @@ export default function HomeScreen() {
 
     try {
       const noteRef = doc(db, "couples", coupleCode);
+      const historyRef = collection(db, "couples", coupleCode, "history");
 
       let payload: Payload = {
         type: mode,
@@ -200,10 +255,14 @@ export default function HomeScreen() {
         payload.text = "Sent a sticker";
       }
 
+      // Chnage theme in payload if it exists
       if (theme !== "") {
         payload.theme = theme;
-        await setDoc(noteRef, payload, { merge: true });
-      } else await setDoc(noteRef, payload, { merge: true });
+      }
+
+      await setDoc(noteRef, payload, { merge: true });
+      // Add message to history
+      await addDoc(historyRef, payload);
 
       setNote("");
       setSelectedSticker(null);
@@ -243,21 +302,128 @@ export default function HomeScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
         <View style={styles.content}>
           <Text style={styles.title}>PostHeart 🔐</Text>
           <Text style={styles.codeDisplay}>CODE: {coupleCode}</Text>
-          {/* PREVIEW CARD */}
+
+          {/* HISTORY SECTION */}
+          <TouchableOpacity
+            onPress={() => {
+              LayoutAnimation.configureNext(
+                LayoutAnimation.Presets.easeInEaseOut
+              );
+              setIsHistoryExpanded(!isHistoryExpanded);
+            }}
+            style={[
+              styles.historyContainer,
+              {
+                height:
+                  history && history?.length > 0
+                    ? isHistoryExpanded
+                      ? 205
+                      : 40
+                    : isHistoryExpanded
+                    ? 100
+                    : 40,
+              },
+            ]}
+          >
+            <View style={styles.historyHeaderRow}>
+              <Text style={styles.historyTitle}>MEMORY LANE 🕰️</Text>
+              <Text style={styles.expandIcon}>
+                {isHistoryExpanded ? "▼" : "▲"}
+              </Text>
+            </View>
+            {isHistoryExpanded && (
+              <View style={{ marginBottom: 30 }}>
+                <ScrollView
+                  style={{ maxHeight: 200 }}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                >
+                  {history && history.length > 0 ? (
+                    history.map((item, index) => {
+                      const isLast = index === history.length - 1;
+                      return (
+                        <View
+                          key={item.id}
+                          style={[
+                            styles.historyItem,
+                            isLast && { marginBottom: 40 },
+                          ]}
+                        >
+                          <View style={styles.historyHeader}>
+                            <Text
+                              style={{
+                                ...styles.historySender,
+                                color: item.color,
+                              }}
+                            >
+                              {item.sender}
+                            </Text>
+                            <Text style={styles.historyTime}>
+                              {item.timestamp?.toDate
+                                ? item.timestamp
+                                    .toDate()
+                                    .toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                : "Just now"}
+                            </Text>
+                          </View>
+
+                          {item.type === "sticker" ? (
+                            <Text style={{ fontSize: 24 }}>
+                              {STICKERS.find((s) => s.id === item.content)
+                                ?.label || "🖼️"}
+                            </Text>
+                          ) : (
+                            <Text style={styles.historyText} numberOfLines={2}>
+                              {item.text}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })
+                  ) : (
+                    // Return this if no history is present
+                    <View
+                      style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          margin: "auto",
+                          fontWeight: 700,
+                          fontSize: 22,
+                          fontStyle: "italic",
+                          paddingTop: 15,
+                        }}
+                      >
+                        "Let's make history together"
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+            )}
+          </TouchableOpacity>
+          {/* 1. PREVIEW CARD (Moved to Top) */}
           <View style={[styles.previewCard]}>
             <Text style={styles.previewLabel}>LIVE ON HOME SCREEN</Text>
 
             {liveMessage.type === "sticker" ? (
-              // Show the LIVE sticker (emoji representation)
               <Text style={{ fontSize: 50, textAlign: "center" }}>
                 {STICKERS.find((s) => s.id === liveMessage.content)?.label}
               </Text>
             ) : (
-              // Show the LIVE text
               <Text style={styles.previewText}>"{liveMessage.text}"</Text>
             )}
 
@@ -271,7 +437,7 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* --- 1. MODE TABS --- */}
+          {/* 2. MODE TABS */}
           <View style={styles.tabContainer}>
             <TouchableOpacity
               onPress={() => setMode("text")}
@@ -302,7 +468,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* --- 2. CONDITIONAL CONTENT --- */}
+          {/* 3. INPUT AREA */}
           {mode === "text" ? (
             <TextInput
               style={styles.input}
@@ -313,7 +479,6 @@ export default function HomeScreen() {
               scrollEnabled
             />
           ) : (
-            /* STICKER GRID */
             <View style={styles.stickerGrid}>
               {STICKERS.map((s) => (
                 <TouchableOpacity
@@ -330,7 +495,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* --- 3. THEME PICKER (Available in both modes!) --- */}
+          {/* 4. THEME PICKER */}
           <View style={styles.themeContainer}>
             <Text style={styles.label}>PICK A VIBE</Text>
             <ScrollView
@@ -367,191 +532,3 @@ export default function HomeScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  // ... Use your existing styles ...
-  // Add this one new style:
-  codeDisplay: {
-    fontSize: 14,
-    color: "#B2BEC3",
-    fontWeight: "bold",
-    marginBottom: 20,
-    letterSpacing: 2,
-    textAlign: "center",
-  },
-  // Paste the rest of your styles from the previous file here
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F7FA",
-  },
-  scrollViewContent: {
-    flexGrow: 1,
-    paddingBottom: 20,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#2D3436",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  previewCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  previewLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#B2BEC3",
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  previewText: {
-    fontSize: 20,
-    color: "#2D3436",
-    fontStyle: "italic",
-  },
-  input: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 100,
-    maxHeight: 120,
-    textAlignVertical: "top",
-    borderWidth: 1,
-    borderColor: "#DFE6E9",
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: "#0984E3",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  themeContainer: {
-    marginBottom: 20,
-    width: "100%",
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#B2BEC3",
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  scrollContainer: {
-    flexGrow: 0, // Don't expand to fill screen
-    marginBottom: 10, // Space below the scroller
-    paddingVertical: 10, // Add room for shadows so they don't get clipped
-    // marginHorizontal: -20, // Optional: Lets it scroll edge-to-edge?
-  },
-
-  scrollContent: {
-    flexDirection: "row", // Keep items horizontal
-    gap: 16, // Increase gap slightly for better touch targets
-    paddingHorizontal: 4, // Tiny padding at the start
-    paddingRight: 20, // Space at the end
-    alignItems: "center", // Center circles vertically in the scroll track
-  },
-  colorCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: "transparent", // Invisible border normally
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  selectedCircle: {
-    borderColor: "#0984E3", // Blue ring when selected
-    transform: [{ scale: 1.1 }], // Slightly bigger
-  },
-  // ... existing styles ...
-
-  // TABS
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#E0E0E0", // Grey background for the pill
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 10,
-  },
-  activeTab: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabText: { fontWeight: "bold", color: "#9E9E9E" },
-  activeTabText: { color: "#2D3436" },
-
-  // STICKERS
-  stickerGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    justifyContent: "center",
-    marginBottom: 20,
-    minHeight: 120, // Match input height roughly so layout doesn't jump
-    alignItems: "center",
-  },
-  stickerButton: {
-    width: 70,
-    height: 70,
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-    elevation: 2,
-  },
-  selectedSticker: {
-    borderColor: "#0984E3",
-    backgroundColor: "#E3F2FD",
-    transform: [{ scale: 1.05 }],
-  },
-  preViewCardFooter: {
-    marginTop: 12,
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  preViewCardFooterText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#B2BEC3",
-    textTransform: "uppercase",
-  },
-});
